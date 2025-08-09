@@ -1,0 +1,195 @@
+{
+  "name": "Oráculo Financeiro",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "id": "8c80e4c0-a898-477f-a24f-5101657301c4",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "jsCode": "// O 'items' pode estar sublinhado, mas vai funcionar. Ele contém a lista completa.\nconst todosOsAtivos = items;\n\n// Ordena a lista pela variação, do menor (maior queda) para o maior (maior alta).\ntodosOsAtivos.sort((a, b) => {\n  const varA = parseFloat(a.json.variacaoPercentual);\n  const varB = parseFloat(b.json.variacaoPercentual);\n  return varA - varB;\n});\n\n// --- Monta o relatório ---\nlet relatorio = \"<h1>📈 Relatório Diário de Ativos</h1>\";\n\n// --- Destaques ---\nrelatorio += \"<h2>⭐ Destaques do Dia ⭐</h2>\";\n\nconst maioresQuedas = todosOsAtivos.slice(0, 2);\nrelatorio += \"<h3>Maiores Quedas:</h3>\";\nfor (const item of maioresQuedas) {\n  const ativo = item.json.codigo;\n  const variacao = parseFloat(item.json.variacaoPercentual).toFixed(2).replace('.', ',');\n  // A MUDANÇA ESTÁ AQUI: Adicionamos o item.json.precoAtual\n  const preco = parseFloat(item.json.precoAtual).toFixed(2).replace('.', ',');\n  relatorio += `<p>🔴 <b>${ativo}:</b> R$ ${preco} (${variacao}%)</p>`;\n}\n\nconst maioresAltas = todosOsAtivos.slice(-2).reverse();\nrelatorio += \"<h3>Maiores Altas:</h3>\";\nfor (const item of maioresAltas) {\n  const ativo = item.json.codigo;\n  const variacao = parseFloat(item.json.variacaoPercentual).toFixed(2).replace('.', ',');\n  // A MUDANÇA ESTÁ AQUI: Adicionamos o item.json.precoAtual\n  const preco = parseFloat(item.json.precoAtual).toFixed(2).replace('.', ',');\n  relatorio += `<p>🟢 <b>${ativo}:</b> R$ ${preco} (${variacao}%)</p>`;\n}\n\n// --- Lista Completa ---\nrelatorio += \"<hr><h2>Variação de todos os ativos:</h2>\";\n\nfor (const item of todosOsAtivos) {\n  const ativo = item.json.codigo;\n  const variacao = parseFloat(item.json.variacaoPercentual).toFixed(2).replace('.', ',');\n  const emoji = parseFloat(item.json.variacaoPercentual) >= 0 ? '🔼' : '🔽';\n  // A MUDANÇA ESTÁ AQUI: Adicionamos o item.json.precoAtual\n  const preco = parseFloat(item.json.precoAtual).toFixed(2).replace('.', ',');\n  \n  relatorio += `<p>${emoji} <b>${ativo}:</b> R$ ${preco} (${variacao}%)</p>`;\n}\n\n// Prepara o item final para ser enviado.\nreturn [{ \n  json: {\n    relatorioCompletoHTML: relatorio\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, -160],
+      "id": "a58ef724-d570-49a1-abc4-e9ff68ffcfbe",
+      "name": "Tratamento dos dados"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ativo = [\n  { codigo: \"ITUB3\" },\n  { codigo: \"BBAS3\" },\n  { codigo: \"BBSE3\" },\n  { codigo: \"ISAE4\" },\n  { codigo: \"FLRY3\" },\n  { codigo: \"ABCB4\" },\n  { codigo: \"CMIG4\" },\n  { codigo: \"VALE3\" },\n  { codigo: \"WEGE3\" },\n  { codigo: \"PETR4\" },\n  { codigo: \"GARE11\" },\n  { codigo: \"AURE3\" },\n  { codigo: \"AGRO3\" },\n  { codigo: \"KLBN11\" }\n];\n\nreturn ativo"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [208, 0],
+      "id": "1dfe9d98-2eb3-4f4e-a44d-65244b3e2f3d",
+      "name": "Array de Ativos"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [416, 0],
+      "id": "b15223d9-ce04-4445-8e37-731743c1a2f8",
+      "name": "Loop Pesquisa"
+    },
+    {
+      "parameters": {
+        "url": "=https://brapi.dev/api/quote/{{ $json.codigo }}?token=wqHc445WaUbDcoH8yjjDd8",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [608, 16],
+      "id": "76ea7041-3464-4c77-97cd-4d9b77158cd1",
+      "name": "Pesquisa Preço Fechamento/Abertura"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2db7de72-e7fa-4bdd-8df4-d98e8d0f6f7f",
+              "name": "variacaoPercentual",
+              "value": "={{ ((($json.results[0].regularMarketPrice - $json.results[0].regularMarketPreviousClose) / $json.results[0].regularMarketPreviousClose) * 100).toFixed(2) }}",
+              "type": "string"
+            },
+            {
+              "id": "e2e90cb6-91f4-45f3-ac4a-90bdfbb8f4fa",
+              "name": "codigo",
+              "value": "={{ $('Array de Ativos').item.json.codigo }}",
+              "type": "string"
+            },
+            {
+              "id": "ee944e31-d231-4c1e-8560-b22e9f9f5bd6",
+              "name": "precoAtual",
+              "value": "={{ $json.results[0].regularMarketPrice }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [672, -160],
+      "id": "fc05f48c-d381-4a27-9f6d-1cac820a333d",
+      "name": "Simplificação de Dados"
+    },
+    {
+      "parameters": {
+        "sendTo": "seuemail@gmail.com",
+        "subject": "📈 Relatório Diário de Ativos",
+        "message": "={{ $json.relatorioCompletoHTML }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1088, -160],
+      "id": "03244365-3313-406c-8cac-048719f20fea",
+      "name": "Gmail Sender",
+      "webhookId": "17975f10-e6f2-4a1b-a183-a33a2ca890a6",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "3qgqo1Y6MOHX2LrC",
+          "name": "Gmail"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Array de Ativos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tratamento dos dados": {
+      "main": [
+        [
+          {
+            "node": "Gmail Sender",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Array de Ativos": {
+      "main": [
+        [
+          {
+            "node": "Loop Pesquisa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Pesquisa": {
+      "main": [
+        [
+          {
+            "node": "Simplificação de Dados",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pesquisa Preço Fechamento/Abertura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pesquisa Preço Fechamento/Abertura": {
+      "main": [
+        [
+          {
+            "node": "Loop Pesquisa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simplificação de Dados": {
+      "main": [
+        [
+          {
+            "node": "Tratamento dos dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "b90f15cb-104c-436a-8d64-a51c691e0a2b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "02b09b37f4a80947d5ee73523cb2395e857666552ba96202e35e42c6e92dc998"
+  },
+  "id": "4wBJqkYNJRLbyxG7",
+  "tags": []
+}
