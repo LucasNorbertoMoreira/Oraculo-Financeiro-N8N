@@ -41,7 +41,7 @@
     },
     {
       "parameters": {
-        "url": "=https://brapi.dev/api/quote/{{ $json.codigo }}?token=wqHc445WaUbDcoH8yjjDd8",
+        "url": "=https://brapi.dev/api/quote/{{ $json.codigo }}?token=SEU-TOKEN-AQUI",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
